@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Mosaic" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <title>Mosaic — 写真でモザイクアート</title>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#07111f; --panel:#0f1b2d; --panel2:#13233a; --text:#f8fafc;
+      --muted:#a7b3c7; --line:#223653; --accent:#7dd3fc; --accent2:#38bdf8;
+      --ok:#86efac; --danger:#fda4af; --shadow:0 18px 55px rgba(0,0,0,.28);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:radial-gradient(circle at 30% -10%,#133057 0,#07111f 42%,#050b13 100%);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
+    body{padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(24px + env(safe-area-inset-bottom)) env(safe-area-inset-left)}
+    .wrap{max-width:820px;margin:0 auto;padding:20px 16px 44px}
+    header{padding:12px 4px 20px}
+    .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700}
+    h1{font-size:clamp(30px,7vw,48px);line-height:1.03;margin:8px 0 10px;letter-spacing:-.04em}
+    .lead{color:var(--muted);line-height:1.65;margin:0;max-width:650px}
+    .privacy,.capacity{margin-top:14px;display:flex;gap:8px;align-items:flex-start;color:#d7e8f8;font-size:13px;line-height:1.45;border-radius:14px;padding:11px 12px}
+    .privacy{background:rgba(125,211,252,.08);border:1px solid rgba(125,211,252,.18)}
+    .capacity{background:rgba(134,239,172,.08);border:1px solid rgba(134,239,172,.18)}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);margin-top:5px;box-shadow:0 0 0 4px rgba(134,239,172,.08);flex:none}
+    .dot.blue{background:var(--accent);box-shadow:0 0 0 4px rgba(125,211,252,.08)}
+    .card{background:linear-gradient(180deg,rgba(19,35,58,.93),rgba(12,25,43,.96));border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:var(--shadow);margin:14px 0}
+    .card h2{font-size:17px;margin:0 0 14px;letter-spacing:-.02em}
+    .stack{display:grid;gap:12px}
+    .pick{display:block;border:1px dashed #315277;background:#0a1728;border-radius:18px;padding:16px;cursor:pointer;transition:.18s}
+    .pick:active{transform:scale(.99);background:#0c1e34}
+    .pick strong{display:block;font-size:15px;margin-bottom:5px}.pick small{color:var(--muted);line-height:1.45}
+    input[type=file]{display:none}
+    .status{margin-top:8px;font-size:13px;color:var(--muted);min-height:18px}
+    .hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px}
+    .thumbrow{display:flex;gap:9px;overflow:auto;padding:2px 0 4px;scrollbar-width:none}.thumbrow::-webkit-scrollbar{display:none}
+    .thumbrow img{width:64px;height:64px;object-fit:cover;border-radius:12px;border:1px solid #28425f;flex:none;background:#091423}
+    .settings{display:grid;grid-template-columns:1fr;gap:16px}
+    .setting{display:grid;gap:7px}.labelrow{display:flex;justify-content:space-between;gap:14px;align-items:center}.labelrow label{font-size:14px;font-weight:650}.value{color:var(--accent);font-variant-numeric:tabular-nums;font-size:13px}
+    input[type=range]{width:100%;accent-color:var(--accent2)}
+    .switchrow{display:flex;justify-content:space-between;gap:16px;align-items:center;border-top:1px solid rgba(255,255,255,.06);padding-top:14px}
+    .switchtext{font-size:14px}.switchtext small{display:block;color:var(--muted);margin-top:3px;font-size:12px}
+    .switch{position:relative;width:50px;height:30px;flex:none}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;inset:0;background:#31445e;border-radius:999px;transition:.2s}.slider:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s;box-shadow:0 2px 8px rgba(0,0,0,.25)}.switch input:checked + .slider{background:#0ea5e9}.switch input:checked + .slider:before{transform:translateX(20px)}
+    button{appearance:none;border:0;border-radius:16px;padding:14px 17px;font-size:15px;font-weight:750;cursor:pointer;color:#05111f;background:linear-gradient(180deg,#8be0ff,#55c7f4);box-shadow:0 10px 25px rgba(56,189,248,.18)}
+    button:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}.secondary{color:#e8f3fb;background:#17283f;border:1px solid #294363;box-shadow:none}.danger{color:#ffdfe4;background:#351722;border:1px solid #5a2635;box-shadow:none}
+    .buttons{display:grid;grid-template-columns:1fr;gap:10px}.buttons.two{grid-template-columns:1fr 1fr}
+    .progress{height:8px;background:#081321;border-radius:999px;overflow:hidden;border:1px solid #1e334e;margin:13px 0 5px}.bar{height:100%;width:0;background:linear-gradient(90deg,#22d3ee,#60a5fa);transition:width .18s}
+    #progressText{font-size:12px;color:var(--muted);min-height:18px;line-height:1.45}
+    .canvasWrap{display:none;margin-top:14px;background:#03070d;border:1px solid #24384f;border-radius:18px;padding:10px;overflow:hidden}.canvasWrap.ready{display:block}
+    canvas{display:block;width:100%;height:auto;border-radius:10px;background:#000}
+    .resultMeta{display:none;color:var(--muted);font-size:12px;line-height:1.5;margin:10px 2px 0}.resultMeta.ready{display:block}
+    footer{color:#71829a;font-size:12px;line-height:1.6;padding:14px 4px 0}
+    @media(min-width:700px){.settings{grid-template-columns:1fr 1fr}.buttons{grid-template-columns:1fr 1fr 1fr}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div class="eyebrow">ON-DEVICE PHOTO MOSAIC</div>
+    <h1>写真だけで、写真を描く。</h1>
+    <p class="lead">1枚の元写真を、カメラロールから選んだ複数の写真でモザイクアートに変換します。処理はすべてこのiPhone / iPad内で行います。</p>
+    <div class="privacy"><span class="dot blue"></span><span><b>写真はアップロードしません。</b> 選択した画像はブラウザの一時メモリだけで扱い、ページを閉じれば破棄されます。</span></div>
+    <div class="capacity"><span class="dot"></span><span><b>大量写真モード対応。</b> 2000枚前後でも、一度に全画像を展開せず、順番に軽量サムネイルへ変換してから処理します。</span></div>
+  </header>
+
+  <section class="card">
+    <h2>1. 写真を選ぶ</h2>
+    <div class="stack">
+      <label class="pick" for="targetInput"><strong>元にする写真を1枚選択</strong><small>完成形の輪郭・色になる写真です。</small></label>
+      <input id="targetInput" type="file" accept="image/*" />
+      <div id="targetStatus" class="status">未選択</div>
+      <div id="targetPreview" class="thumbrow"></div>
+
+      <label class="pick" for="tilesInput"><strong>モザイクに使う写真を複数選択</strong><small>大量枚数でも使えます。2000枚前後を想定し、素材は1枚ずつ解析して軽量化します。</small></label>
+      <input id="tilesInput" type="file" accept="image/*" multiple />
+      <div id="tilesStatus" class="status">未選択</div>
+      <div id="tilesPreview" class="thumbrow"></div>
+      <div class="hint">大量枚数では解析に少し時間がかかります。処理中はこの画面を開いたままにしてください。</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. 仕上がりを調整</h2>
+    <div class="settings">
+      <div class="setting">
+        <div class="labelrow"><label for="cols">細かさ</label><span id="colsValue" class="value">36列</span></div>
+        <input id="cols" type="range" min="12" max="90" step="2" value="36" />
+      </div>
+      <div class="setting">
+        <div class="labelrow"><label for="outWidth">出力サイズ</label><span id="outWidthValue" class="value">1600 px</span></div>
+        <input id="outWidth" type="range" min="800" max="2400" step="200" value="1600" />
+      </div>
+      <div class="setting">
+        <div class="labelrow"><label for="balance">写真の偏り抑制</label><span id="balanceValue" class="value">55%</span></div>
+        <input id="balance" type="range" min="0" max="100" step="5" value="55" />
+      </div>
+      <div class="setting">
+        <div class="labelrow"><label for="blend">元写真を薄く重ねる</label><span id="blendValue" class="value">8%</span></div>
+        <input id="blend" type="range" min="0" max="35" step="1" value="8" />
+      </div>
+    </div>
+    <div class="switchrow">
+      <div class="switchtext">隣り合う同じ写真を避ける<small>候補が少ない場合は自動的に再利用します。</small></div>
+      <label class="switch"><input id="avoidAdjacent" type="checkbox" checked><span class="slider"></span></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3. 作成</h2>
+    <button id="makeBtn" disabled>モザイクアートを作成</button>
+    <div class="progress"><div id="bar" class="bar"></div></div>
+    <div id="progressText"></div>
+    <div id="canvasWrap" class="canvasWrap"><canvas id="output"></canvas></div>
+    <div id="resultMeta" class="resultMeta"></div>
+    <div id="resultButtons" class="buttons two" style="margin-top:12px;display:none">
+      <button id="shareBtn">共有 / 写真に保存</button>
+      <button id="downloadBtn" class="secondary">PNGをダウンロード</button>
+    </div>
+    <div class="buttons" style="margin-top:10px">
+      <button id="clearBtn" class="danger">読み込んだ写真をすべて破棄</button>
+    </div>
+  </section>
+
+  <footer>このアプリは外部ライブラリ・解析サービス・画像APIを使用しません。PWA本体のHTML/CSS/JavaScriptだけがオフライン用にキャッシュされ、あなたが選んだ写真はキャッシュ対象になりません。</footer>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const targetInput = $('#targetInput'), tilesInput = $('#tilesInput');
+  const makeBtn = $('#makeBtn'), clearBtn = $('#clearBtn'), shareBtn = $('#shareBtn'), downloadBtn = $('#downloadBtn');
+  const canvas = $('#output'), ctx = canvas.getContext('2d', { alpha: false });
+  const targetPreview = $('#targetPreview'), tilesPreview = $('#tilesPreview');
+  const targetStatus = $('#targetStatus'), tilesStatus = $('#tilesStatus');
+  const canvasWrap = $('#canvasWrap'), resultButtons = $('#resultButtons'), resultMeta = $('#resultMeta');
+  const bar = $('#bar'), progressText = $('#progressText');
+  const targetState = { file:null, img:null, url:null };
+  let tileFiles = [];
+  let tileData = [];
+  let busy = false;
+
+  const controls = {
+    cols: $('#cols'), outWidth: $('#outWidth'), balance: $('#balance'), blend: $('#blend'), avoidAdjacent: $('#avoidAdjacent')
+  };
+  const labels = {
+    cols: $('#colsValue'), outWidth: $('#outWidthValue'), balance: $('#balanceValue'), blend: $('#blendValue')
+  };
+
+  function syncLabels(){
+    labels.cols.textContent = `${controls.cols.value}列`;
+    labels.outWidth.textContent = `${controls.outWidth.value} px`;
+    labels.balance.textContent = `${controls.balance.value}%`;
+    labels.blend.textContent = `${controls.blend.value}%`;
+  }
+  Object.values(controls).forEach(el => el.addEventListener('input', syncLabels));
+  syncLabels();
+
+  function setProgress(p, text=''){
+    bar.style.width = `${Math.max(0, Math.min(100, p))}%`;
+    progressText.textContent = text;
+  }
+
+  function pause(){ return new Promise(r => setTimeout(r, 0)); }
+
+  function revokeTarget(){
+    if(targetState.url) URL.revokeObjectURL(targetState.url);
+    targetState.file = targetState.img = targetState.url = null;
+  }
+
+  function loadImageFromUrl(url){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  function fileToImage(file){
+    const url = URL.createObjectURL(file);
+    return loadImageFromUrl(url).then(img => ({img, url}));
+  }
+
+  function drawCover(c, img, x, y, w, h){
+    const sourceW = img.naturalWidth || img.width;
+    const sourceH = img.naturalHeight || img.height;
+    const ir = sourceW / sourceH;
+    const rr = w / h;
+    let sx=0, sy=0, sw=sourceW, sh=sourceH;
+    if(ir > rr){ sw = sourceH * rr; sx = (sourceW - sw)/2; }
+    else { sh = sourceW / rr; sy = (sourceH - sh)/2; }
+    c.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  }
+
+  function getAdaptiveThumbSize(count){
+    if(count >= 1800) return 36;
+    if(count >= 1200) return 40;
+    if(count >= 700) return 48;
+    return 64;
+  }
+
+  async function makeTileRecord(file, thumbSize){
+    const {img, url} = await fileToImage(file);
+    try{
+      const c = document.createElement('canvas');
+      c.width = thumbSize;
+      c.height = thumbSize;
+      const cc = c.getContext('2d', {willReadFrequently:true});
+      drawCover(cc, img, 0, 0, thumbSize, thumbSize);
+      const d = cc.getImageData(0, 0, thumbSize, thumbSize).data;
+      let r=0,g=0,b=0,n=0;
+      const stride = Math.max(4, Math.floor((thumbSize * thumbSize) / 384));
+      for(let i=0;i<d.length;i+=stride*4){
+        r += d[i]; g += d[i+1]; b += d[i+2]; n++;
+      }
+      const src = c.toDataURL('image/jpeg', 0.72);
+      return { src, r:r/n, g:g/n, b:b/n, name:file.name, thumbSize };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  targetInput.addEventListener('change', async () => {
+    const file = targetInput.files && targetInput.files[0];
+    if(!file || busy) return;
+    revokeTarget();
+    targetPreview.innerHTML = '';
+    const {img, url} = await fileToImage(file);
+    targetState.file = file; targetState.img = img; targetState.url = url;
+    const p = document.createElement('img'); p.src = url; p.alt = '元写真'; targetPreview.appendChild(p);
+    targetStatus.textContent = `${file.name} — ${img.naturalWidth}×${img.naturalHeight}`;
+    validate();
+  });
+
+  tilesInput.addEventListener('change', () => {
+    tileFiles = Array.from(tilesInput.files || []);
+    tileData = [];
+    tilesPreview.innerHTML='';
+    tileFiles.slice(0, 12).forEach(file => {
+      const img = document.createElement('img');
+      const u = URL.createObjectURL(file);
+      img.src = u;
+      img.onload = () => URL.revokeObjectURL(u);
+      img.alt = '素材写真';
+      tilesPreview.appendChild(img);
+    });
+    if(tileFiles.length > 12){
+      const info = document.createElement('div');
+      info.style.cssText = 'display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:12px;border:1px solid #28425f;background:#091423;color:#cfe7fb;font-size:12px;line-height:1.25;padding:4px;text-align:center;flex:none';
+      info.textContent = `+${tileFiles.length - 12}枚`;
+      tilesPreview.appendChild(info);
+    }
+    tilesStatus.textContent = tileFiles.length ? `${tileFiles.length}枚を選択` : '未選択';
+    validate();
+  });
+
+  function validate(){
+    makeBtn.disabled = busy || !targetState.img || tileFiles.length < 2;
+  }
+
+  async function prepareTiles(){
+    if(tileData.length === tileFiles.length && tileData.length) return;
+    tileData = [];
+    const thumbSize = getAdaptiveThumbSize(tileFiles.length);
+    for(let i=0;i<tileFiles.length;i++){
+      setProgress((i / Math.max(1, tileFiles.length)) * 35, `素材写真を軽量化中… ${i+1}/${tileFiles.length}（${thumbSize}×${thumbSize}px）`);
+      try {
+        tileData.push(await makeTileRecord(tileFiles[i], thumbSize));
+      } catch(err){
+        console.warn('Skipped image', tileFiles[i]?.name, err);
+      }
+      if(i % 3 === 0) await pause();
+    }
+    if(tileData.length < 2) throw new Error('読み込める素材写真が2枚未満でした。');
+    tilesStatus.textContent = `${tileFiles.length}枚を選択 / 解析可能 ${tileData.length}枚`;
+  }
+
+  function colorDistance(a, b){
+    const dr = a.r - b.r;
+    const dg = a.g - b.g;
+    const db = a.b - b.b;
+    return dr*dr*0.30 + dg*dg*0.59 + db*db*0.11;
+  }
+
+  function assignTiles(cells, cols){
+    const assignment = new Array(cells.length);
+    const usage = new Array(tileData.length).fill(0);
+    const balance = Number(controls.balance.value) / 100;
+    const avgUse = (cells.length / tileData.length);
+
+    return { assignment, usage, balance, avgUse };
+  }
+
+  async function loadUsedThumbs(usedIndices){
+    const thumbMap = new Map();
+    for(let i=0;i<usedIndices.length;i++){
+      const idx = usedIndices[i];
+      thumbMap.set(idx, await loadImageFromUrl(tileData[idx].src));
+      if(i % 12 === 0){
+        setProgress(72 + (i / Math.max(1, usedIndices.length)) * 10, `使用する素材だけを読み込み中… ${i+1}/${usedIndices.length}`);
+        await pause();
+      }
+    }
+    return thumbMap;
+  }
+
+  async function buildMosaic(){
+    busy = true;
+    validate();
+    resultButtons.style.display = 'none';
+    canvasWrap.classList.remove('ready');
+    resultMeta.classList.remove('ready');
+    setProgress(1, '準備中…');
+
+    try{
+      await prepareTiles();
+
+      const cols = Number(controls.cols.value);
+      const outW = Number(controls.outWidth.value);
+      const aspect = targetState.img.naturalHeight / targetState.img.naturalWidth;
+      const rows = Math.max(1, Math.round(cols * aspect));
+      const outH = Math.max(1, Math.round(outW * aspect));
+
+      const sample = document.createElement('canvas');
+      sample.width = cols;
+      sample.height = rows;
+      const sc = sample.getContext('2d', {willReadFrequently:true});
+      sc.drawImage(targetState.img, 0, 0, cols, rows);
+      const px = sc.getImageData(0, 0, cols, rows).data;
+      const cells = [];
+      for(let i=0;i<cols*rows;i++){
+        cells.push({ r:px[i*4], g:px[i*4+1], b:px[i*4+2] });
+      }
+
+      const assignment = new Array(cells.length);
+      const usage = new Array(tileData.length).fill(0);
+      const balance = Number(controls.balance.value)/100;
+      const avgUse = (cells.length / tileData.length);
+
+      for(let i=0;i<cells.length;i++){
+        const x = i % cols, y = Math.floor(i / cols);
+        const banned = new Set();
+        if(controls.avoidAdjacent.checked){
+          if(x > 0) banned.add(assignment[i-1]);
+          if(y > 0) banned.add(assignment[i-cols]);
+        }
+        let best = -1, bestScore = Infinity;
+        for(let t=0;t<tileData.length;t++){
+          if(banned.has(t) && tileData.length > 2) continue;
+          const dist = colorDistance(cells[i], tileData[t]);
+          const pressure = balance * 2600 * Math.pow(usage[t] / Math.max(1, avgUse), 1.7);
+          const score = dist + pressure;
+          if(score < bestScore){
+            bestScore = score;
+            best = t;
+          }
+        }
+        if(best < 0){
+          for(let t=0;t<tileData.length;t++){
+            const score = colorDistance(cells[i], tileData[t]);
+            if(score < bestScore){ bestScore = score; best = t; }
+          }
+        }
+        assignment[i] = best;
+        usage[best]++;
+        if(i % 180 === 0){
+          setProgress(35 + (i / cells.length) * 35, `色合わせ中… ${i+1}/${cells.length}`);
+          await pause();
+        }
+      }
+
+      const usedSet = new Set(assignment);
+      const usedIndices = Array.from(usedSet).sort((a,b) => usage[b] - usage[a]);
+      const thumbs = await loadUsedThumbs(usedIndices);
+
+      canvas.width = outW;
+      canvas.height = outH;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, outW, outH);
+      const cw = outW / cols, ch = outH / rows;
+      for(let i=0;i<assignment.length;i++){
+        const x = i % cols, y = Math.floor(i / cols);
+        drawCover(ctx, thumbs.get(assignment[i]), x * cw, y * ch, cw + 0.8, ch + 0.8);
+        if(i % 220 === 0){
+          setProgress(82 + (i / assignment.length) * 17, `描画中… ${i+1}/${assignment.length}`);
+          await pause();
+        }
+      }
+
+      const blend = Number(controls.blend.value) / 100;
+      if(blend > 0){
+        ctx.save();
+        ctx.globalAlpha = blend;
+        ctx.drawImage(targetState.img, 0, 0, outW, outH);
+        ctx.restore();
+      }
+
+      setProgress(100, '完成しました');
+      canvasWrap.classList.add('ready');
+      resultButtons.style.display = 'grid';
+      const used = usage.filter(v => v > 0).length;
+      const thumbSize = tileData[0]?.thumbSize || 0;
+      resultMeta.textContent = `${cols}×${rows} = ${cols*rows}タイル / 素材 ${tileData.length}枚中 ${used}枚を使用 / 解析サムネイル ${thumbSize}px / 出力 ${outW}×${outH}px`;
+      resultMeta.classList.add('ready');
+      canvasWrap.scrollIntoView({behavior:'smooth', block:'nearest'});
+    } catch(err){
+      console.error(err);
+      setProgress(0, err && err.message ? err.message : '作成に失敗しました。');
+    } finally {
+      busy = false;
+      validate();
+    }
+  }
+
+  makeBtn.addEventListener('click', buildMosaic);
+
+  function canvasBlob(){
+    return new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
+  }
+
+  downloadBtn.addEventListener('click', async () => {
+    const blob = await canvasBlob();
+    if(!blob) return;
+    const a = document.createElement('a');
+    const u = URL.createObjectURL(blob);
+    a.href = u;
+    a.download = `mosaic-${new Date().toISOString().slice(0,10)}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 2000);
+  });
+
+  shareBtn.addEventListener('click', async () => {
+    const blob = await canvasBlob();
+    if(!blob) return;
+    const file = new File([blob], `mosaic-${new Date().toISOString().slice(0,10)}.png`, {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]}) && navigator.share){
+      try{ await navigator.share({files:[file], title:'Mosaic'}); }
+      catch(e){ if(e?.name !== 'AbortError') console.warn(e); }
+    } else {
+      downloadBtn.click();
+    }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    revokeTarget();
+    tileFiles = [];
+    tileData = [];
+    targetInput.value = '';
+    tilesInput.value = '';
+    targetPreview.innerHTML = '';
+    tilesPreview.innerHTML = '';
+    targetStatus.textContent = '未選択';
+    tilesStatus.textContent = '未選択';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 300;
+    canvas.height = 150;
+    canvasWrap.classList.remove('ready');
+    resultMeta.classList.remove('ready');
+    resultButtons.style.display = 'none';
+    setProgress(0, '読み込んだ写真を破棄しました。');
+    validate();
+  });
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.warn));
+  }
+})();
+</script>
+</body>
+</html>
