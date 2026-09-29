@@ -39,6 +39,7 @@
     input[type=file]{display:none}
     .status{margin-top:8px;font-size:13px;color:var(--muted);min-height:18px}
     .hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px}
+    .counter{margin-top:8px;padding:10px 12px;border-radius:14px;background:#091423;border:1px solid #28425f;color:#d7e8f8;font-size:13px;line-height:1.55}
     .thumbrow{display:flex;gap:9px;overflow:auto;padding:2px 0 4px;scrollbar-width:none}.thumbrow::-webkit-scrollbar{display:none}
     .thumbrow img{width:64px;height:64px;object-fit:cover;border-radius:12px;border:1px solid #28425f;flex:none;background:#091423}
     .settings{display:grid;grid-template-columns:1fr;gap:16px}
@@ -77,11 +78,15 @@
       <div id="targetStatus" class="status">未選択</div>
       <div id="targetPreview" class="thumbrow"></div>
 
-      <label class="pick" for="tilesInput"><strong>モザイクに使う写真を複数選択</strong><small>大量枚数でも使えます。2000枚前後を想定し、素材は1枚ずつ解析して軽量化します。</small></label>
+      <div class="setting" style="margin-top:2px">
+        <div class="labelrow"><label for="plannedCount">読み込む予定の素材写真枚数</label><span id="plannedCountValue" class="value">2000枚</span></div>
+        <input id="plannedCount" type="range" min="100" max="3000" step="100" value="2000" />
+      </div>
+      <label class="pick" for="tilesInput"><strong>素材写真を追加（何回でもOK）</strong><small>一度に2000枚選ばず、100枚前後ずつ分割して追加してください。選ぶたびに合計へ加算します。</small></label>
       <input id="tilesInput" type="file" accept="image/*" multiple />
-      <div id="tilesStatus" class="status">未選択</div>
-      <div id="tilesPreview" class="thumbrow"></div>
-      <div class="hint">大量枚数では解析に少し時間がかかります。処理中はこの画面を開いたままにしてください。</div>
+      <div id="tilesStatus" class="status">0枚を追加済み / 予定 2000枚</div>
+      <div id="tilesSummary" class="counter">まだ素材写真は追加されていません。</div>
+      <div class="hint">iPhoneでは写真ピッカー自体が大量選択で重くなりやすいため、100枚ずつくらいの分割追加が最も安定します。</div>
     </div>
   </section>
 
@@ -136,27 +141,32 @@
   const targetInput = $('#targetInput'), tilesInput = $('#tilesInput');
   const makeBtn = $('#makeBtn'), clearBtn = $('#clearBtn'), shareBtn = $('#shareBtn'), downloadBtn = $('#downloadBtn');
   const canvas = $('#output'), ctx = canvas.getContext('2d', { alpha: false });
-  const targetPreview = $('#targetPreview'), tilesPreview = $('#tilesPreview');
-  const targetStatus = $('#targetStatus'), tilesStatus = $('#tilesStatus');
+  const targetPreview = $('#targetPreview');
+  const targetStatus = $('#targetStatus'), tilesStatus = $('#tilesStatus'), tilesSummary = $('#tilesSummary');
   const canvasWrap = $('#canvasWrap'), resultButtons = $('#resultButtons'), resultMeta = $('#resultMeta');
   const bar = $('#bar'), progressText = $('#progressText');
   const targetState = { file:null, img:null, url:null };
   let tileFiles = [];
   let tileData = [];
   let busy = false;
+  const tileKeySet = new Set();
 
   const controls = {
-    cols: $('#cols'), outWidth: $('#outWidth'), balance: $('#balance'), blend: $('#blend'), avoidAdjacent: $('#avoidAdjacent')
+    plannedCount: $('#plannedCount'), cols: $('#cols'), outWidth: $('#outWidth'), balance: $('#balance'), blend: $('#blend'), avoidAdjacent: $('#avoidAdjacent')
   };
   const labels = {
-    cols: $('#colsValue'), outWidth: $('#outWidthValue'), balance: $('#balanceValue'), blend: $('#blendValue')
+    plannedCount: $('#plannedCountValue'), cols: $('#colsValue'), outWidth: $('#outWidthValue'), balance: $('#balanceValue'), blend: $('#blendValue')
   };
 
   function syncLabels(){
+    labels.plannedCount.textContent = `${controls.plannedCount.value}枚`;
     labels.cols.textContent = `${controls.cols.value}列`;
     labels.outWidth.textContent = `${controls.outWidth.value} px`;
     labels.balance.textContent = `${controls.balance.value}%`;
     labels.blend.textContent = `${controls.blend.value}%`;
+    const planned = Number(controls.plannedCount.value);
+    const extra = tileData.length ? ` / 解析可能 ${tileData.length}枚` : '';
+    tilesStatus.textContent = `${tileFiles.length}枚を追加済み / 予定 ${planned}枚${extra}`;
   }
   Object.values(controls).forEach(el => el.addEventListener('input', syncLabels));
   syncLabels();
@@ -239,24 +249,25 @@
   });
 
   tilesInput.addEventListener('change', () => {
-    tileFiles = Array.from(tilesInput.files || []);
-    tileData = [];
-    tilesPreview.innerHTML='';
-    tileFiles.slice(0, 12).forEach(file => {
-      const img = document.createElement('img');
-      const u = URL.createObjectURL(file);
-      img.src = u;
-      img.onload = () => URL.revokeObjectURL(u);
-      img.alt = '素材写真';
-      tilesPreview.appendChild(img);
-    });
-    if(tileFiles.length > 12){
-      const info = document.createElement('div');
-      info.style.cssText = 'display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:12px;border:1px solid #28425f;background:#091423;color:#cfe7fb;font-size:12px;line-height:1.25;padding:4px;text-align:center;flex:none';
-      info.textContent = `+${tileFiles.length - 12}枚`;
-      tilesPreview.appendChild(info);
+    const incoming = Array.from(tilesInput.files || []);
+    let added = 0, skipped = 0;
+    for(const file of incoming){
+      const key = `${file.name}__${file.size}__${file.lastModified}`;
+      if(tileKeySet.has(key)) { skipped++; continue; }
+      tileKeySet.add(key);
+      tileFiles.push(file);
+      added++;
     }
-    tilesStatus.textContent = tileFiles.length ? `${tileFiles.length}枚を選択` : '未選択';
+    tileData = [];
+    tilesInput.value = '';
+    const planned = Number(controls.plannedCount.value);
+    tilesStatus.textContent = `${tileFiles.length}枚を追加済み / 予定 ${planned}枚`;
+    if(tileFiles.length === 0){
+      tilesSummary.textContent = 'まだ素材写真は追加されていません。';
+    } else {
+      const percent = Math.min(100, Math.round((tileFiles.length / Math.max(1, planned)) * 100));
+      tilesSummary.textContent = `前回追加 ${added}枚${skipped ? ` / 重複スキップ ${skipped}枚` : ''} / 合計 ${tileFiles.length}枚 / 進捗 ${percent}%`;
+    }
     validate();
   });
 
@@ -278,7 +289,8 @@
       if(i % 3 === 0) await pause();
     }
     if(tileData.length < 2) throw new Error('読み込める素材写真が2枚未満でした。');
-    tilesStatus.textContent = `${tileFiles.length}枚を選択 / 解析可能 ${tileData.length}枚`;
+    const planned = Number(controls.plannedCount.value);
+    tilesStatus.textContent = `${tileFiles.length}枚を追加済み / 予定 ${planned}枚 / 解析可能 ${tileData.length}枚`;
   }
 
   function colorDistance(a, b){
@@ -453,12 +465,13 @@
     revokeTarget();
     tileFiles = [];
     tileData = [];
+    tileKeySet.clear();
     targetInput.value = '';
     tilesInput.value = '';
     targetPreview.innerHTML = '';
-    tilesPreview.innerHTML = '';
     targetStatus.textContent = '未選択';
-    tilesStatus.textContent = '未選択';
+    tilesStatus.textContent = `0枚を追加済み / 予定 ${controls.plannedCount.value}枚`;
+    tilesSummary.textContent = 'まだ素材写真は追加されていません。';
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     canvas.width = 300;
     canvas.height = 150;
